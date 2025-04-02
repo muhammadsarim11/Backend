@@ -2,6 +2,10 @@ import express from "express";
 const app = express();
 import cors from "cors";
 
+app.use(express.json());
+
+// Middleware to parse URL-encoded request bodies
+app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
     origin: "process.env.CLIENT_URL",
