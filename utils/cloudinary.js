@@ -1,4 +1,6 @@
-require("dotenv").config(); // Load environment variables
+import dotenv from "dotenv"; // Use import instead of require
+dotenv.config(); // Load environment variables
+
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
 
@@ -15,8 +17,12 @@ const UploadOnCloudinary = async (localfilepath) => {
       resource_type: "auto",
     });
     console.log(response.url);
+    return response.url; // Ensure the URL is returned
   } catch (error) {
-    fs.unlinkSync(localfilepath);
+    if (fs.existsSync(localfilepath)) {
+      fs.unlinkSync(localfilepath); // Safely delete the file if it exists
+    }
+    throw error; // Re-throw the error for proper error handling
   }
 };
 

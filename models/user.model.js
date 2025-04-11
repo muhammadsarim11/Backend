@@ -1,5 +1,8 @@
-import { JsonWebTokenError } from "jsonwebtoken";
+import pkg from "jsonwebtoken";
+const { JsonWebTokenError, sign } = pkg;
 import mongoose from "mongoose";
+import bcrypt from "bcrypt"; // Ensure bcrypt is imported for hashing passwords
+
 const UserSchema = new mongoose.Schema(
   {
     username: {
@@ -43,7 +46,7 @@ const UserSchema = new mongoose.Schema(
         ref: "Video",
       },
     ],
-    refreshToken: {
+    userrefreshToken: {
       type: String,
     },
   },
@@ -52,7 +55,7 @@ const UserSchema = new mongoose.Schema(
 
 UserSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
-  this.password = bcrypt.hash(this.password, 10);
+  this.password = await bcrypt.hash(this.password, 10); // Ensure hashing is awaited
   next();
 });
 
@@ -61,7 +64,7 @@ UserSchema.methods.isPasswordMatch = async function (password) {
 };
 
 UserSchema.methods.generateToken = function () {
-  jwt.sign(
+  return sign(
     {
       _id: this._id,
       email: this.email,
@@ -69,7 +72,6 @@ UserSchema.methods.generateToken = function () {
       fullName: this.fullName,
     },
     process.env.ACCESS_TOKEN_SECRET,
-
     {
       expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
     }
@@ -77,13 +79,12 @@ UserSchema.methods.generateToken = function () {
 };
 
 UserSchema.methods.refreshToken = function () {
-  return jwt.sign(
+  return sign(
     {
       _id: this._id,
       email: this.email,
     },
     process.env.REFRESH_TOKEN_SECRET,
-
     {
       expiresIn: process.env.REFRESH_TOKEN_EXPIRY,
     }
@@ -91,3 +92,5 @@ UserSchema.methods.refreshToken = function () {
 };
 
 const User = mongoose.model("User", UserSchema);
+
+export default User;
