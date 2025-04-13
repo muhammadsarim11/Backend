@@ -3,7 +3,6 @@ const app = express();
 import cors from "cors";
 
 app.use(express.json());
-
 // Middleware to parse URL-encoded request bodies
 app.use(express.urlencoded({ extended: true }));
 app.use(
@@ -17,6 +16,9 @@ app.get("/", function (req, res) {
 });
 
 import userRouter from "../routes/user.routes.js";
+import cookieParser from "cookie-parser";
+app.use(cookieParser());
+
 app.use("/api/v1/users", userRouter);
 
 export default app;

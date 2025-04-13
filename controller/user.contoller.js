@@ -27,7 +27,7 @@ const generateAccessandRefreshToken = async (userId) => {
 const RegisterUser = AsyncHandler(async (req, res) => {
   const { email, password, fullName, username } = req.body;
 
-  if (!email || !password || !fullName || !username) {
+  if (!(username || email || password || fullName)) {
     throw new ApiError("Please provide all required fields", 400);
   }
 
@@ -81,20 +81,15 @@ const RegisterUser = AsyncHandler(async (req, res) => {
 });
 
 const LoginUser = AsyncHandler(async (req, res) => {
-  // re body -> data
-  // username or email
-  // find the user
-  // password
-  //access and refresh token
-  // send cookies
-  // send response
   const { username, email, password } = req.body;
-  if (!username || !email) {
+
+  if (!username && !email) {
     throw new ApiError(400, "Please provide username or email");
   }
   if (!password) {
     throw new ApiError(400, "Please provide password");
   }
+
   const user = await User.findOne({ $or: [{ username }, { email }] });
   if (!user) {
     throw new ApiError(404, "User not found");
@@ -110,18 +105,19 @@ const LoginUser = AsyncHandler(async (req, res) => {
   );
 
   const loggedInuser = await User.findById(user._id).select(
-    "-password -userrefreshToken "
+    "-password -userrefreshToken"
   );
 
-  const option = {
-    httponly: true,
-    secure: true,
+  const options = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production", // Use secure cookies in production
+    sameSite: "strict",
   };
 
   res
     .status(200)
-    .cookies("refreshToken", refreshToken, option)
-    .cookies("generateToken", accessToken, option)
+    .cookie("refreshToken", refreshToken, options) // Set refreshToken cookie
+    .cookie("accessToken", accessToken, options) // Set accessToken cookie
     .json(
       new ApiResponse(
         200,
@@ -134,4 +130,32 @@ const LoginUser = AsyncHandler(async (req, res) => {
       )
     );
 });
+
+const LogoutUser = AsyncHandler(async (req, res) => {
+  const options = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production", // Use secure cookies in production
+    sameSite: "strict",
+  };
+
+  await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: {
+        userrefreshToken: undefined,
+      },
+    },
+    {
+      new: true,
+    }
+  );
+
+  res
+    .status(200)
+    .clearCookie("accessToken", options) // Clear accessToken cookie
+    .clearCookie("refreshToken", options) // Clear refreshToken cookie
+    .json(new ApiResponse(200, null, "User logged out successfully"));
+});
+
 export default RegisterUser;
+export { LoginUser, LogoutUser };
