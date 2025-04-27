@@ -3,7 +3,7 @@ import ApiError from "../utils/ApiError.js";
 import User from "../models/user.model.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import { UploadOnCloudinary } from "../utils/cloudinary.js";
-
+import jwt from "jsonwebtoken";
 const generateAccessandRefreshToken = async (userId) => {
   // steps
   // 1. generate access token and refresh token
@@ -110,8 +110,7 @@ const LoginUser = AsyncHandler(async (req, res) => {
 
   const options = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production", // Use secure cookies in production
-    sameSite: "strict",
+    secure: true, // Use secure cookies in production
   };
 
   res
@@ -157,5 +156,54 @@ const LogoutUser = AsyncHandler(async (req, res) => {
     .json(new ApiResponse(200, null, "User logged out successfully"));
 });
 
+const refreshAccessToken = AsyncHandler(async (req, res) => {
+  const incomingToken = req.cookie.refreshToken;
+
+  try {
+    if (!incomingToken) {
+      throw new ApiError("failed", 404);
+    }
+
+    const decodedToken = jwt.verify(
+      incomingToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
+
+    const user = await User.findById(decodedToken?._id);
+    if (!user) {
+      throw new ApiError("invalid refresh token request", 404);
+    }
+
+    if (incomingToken !== user?.userrefreshToken) {
+      throw new ApiError("refresh token is expired", 400);
+    }
+
+    const options = {
+      httpOnly: true,
+      secure: true,
+    };
+
+    const { accessToken, newrefreshToken } =
+      await generateAccessandRefreshToken(user._id);
+    res
+      .status(200)
+      .cookie("accessToken", accessToken, options) // Set accessToken cookie
+      .cookie("refreshToken", newrefreshToken, options) // Set refreshToken cookie
+      .json(
+        new ApiResponse(
+          200,
+          {
+            accessToken,
+            refreshToken: newrefreshToken,
+          },
+          "User logged in successfully"
+        )
+      );
+  } catch (error) {
+    console.error("Error refreshing access token:", error); // Log the error for debugging
+    throw new ApiError(500, "Internal server error"); // Throw a generic error
+  }
+});
+
 export default RegisterUser;
-export { LoginUser, LogoutUser };
+export { LoginUser, LogoutUser, refreshAccessToken };
