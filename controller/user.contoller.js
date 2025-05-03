@@ -4,6 +4,7 @@ import User from "../models/user.model.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import { UploadOnCloudinary } from "../utils/cloudinary.js";
 import jwt from "jsonwebtoken";
+import { json } from "express";
 const generateAccessandRefreshToken = async (userId) => {
   // steps
   // 1. generate access token and refresh token
@@ -246,6 +247,62 @@ const updateAccountDetails = AsyncHandler(async (req, res) => {
     .json(ApiResponse(200, user, "Account details successfully changed!"));
 });
 
+const updateAvatar = AsyncHandler(async (req, res) => {
+  const avatarlocalpath = req.file.path;
+  if (!avatarlocalpath) {
+    throw new ApiError(400, "File is missing!");
+  }
+
+  const avatar = await UploadOnCloudinary(avatarlocalpath);
+  if (!avatar.url) {
+    throw new ApiError(400, "error while uploading!");
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: {
+        avatar: avatar.url,
+      },
+    },
+    {
+      new: true,
+    }.select("-password")
+  );
+
+  return res
+    .status(200)
+    .json(ApiResponse(200, user, "Avatar successfully changed!"));
+});
+
+const updateCoverImage = AsyncHandler(async (req, res) => {
+  const coverImagelocalpath = req.file.path;
+
+  if (!coverImagelocalpath) {
+    throw new ApiError(400, "File is missing!");
+  }
+
+  const coverImage = await UploadOnCloudinary(coverImagelocalpath);
+
+  if (!coverImage.url) {
+    throw new ApiError(400, "error while uploading coverimage");
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        coverImage: coverImage.url,
+      },
+    },
+    {
+      new: true,
+    }.select("-password")
+  );
+
+  return res.status(200).json(200, user, "CoverImage is succesfully changed!");
+});
+
 export default RegisterUser;
 export {
   LoginUser,
@@ -253,4 +310,6 @@ export {
   refreshAccessToken,
   ChangePassword,
   updateAccountDetails,
+  updateAvatar,
+  updateCoverImage,
 };
