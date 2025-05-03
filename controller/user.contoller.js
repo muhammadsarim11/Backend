@@ -204,6 +204,53 @@ const refreshAccessToken = AsyncHandler(async (req, res) => {
     throw new ApiError(500, "Internal server error"); // Throw a generic error
   }
 });
+const ChangePassword = AsyncHandler(async (req, res) => {
+  const { newpassword, oldpassword } = req.body;
+  const user = await User.findById(req.user._id);
+
+  const ispasswordcorrect = await user.isPasswordMatch(oldpassword);
+
+  if (!ispasswordcorrect) {
+    throw new ApiError(400, "invalid info");
+  }
+  user.password = newpassword;
+  await user.save({ validateBeforeSave: false });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "password is successfully changed!"));
+});
+
+const updateAccountDetails = AsyncHandler(async (req, res) => {
+  const { fullName, email } = req.body;
+
+  if (!fullName || !email) {
+    throw new ApiError(400, "fill the information correclty!");
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        fullName,
+        email,
+      },
+    },
+    {
+      new: true,
+    }.select("-password")
+  );
+
+  return res
+    .status(200)
+    .json(ApiResponse(200, user, "Account details successfully changed!"));
+});
 
 export default RegisterUser;
-export { LoginUser, LogoutUser, refreshAccessToken };
+export {
+  LoginUser,
+  LogoutUser,
+  refreshAccessToken,
+  ChangePassword,
+  updateAccountDetails,
+};
